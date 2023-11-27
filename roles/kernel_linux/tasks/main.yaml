@@ -1,0 +1,219 @@
+---
+- name: Modules Hardening
+  become: true
+  block:
+   - name: Utilise lsmod
+     shell: lsmod
+     register: lsmod_result
+     changed_when: false
+   - name: Extraire le nom des modules chargé
+     set_fact:
+      loaded_modules: "{{ lsmod_result.stdout_lines | reject('match', '^Module') | map('regex_replace', '^(\\S+).*$', '\\1') | list }}"
+   - name: Comparer et écrire la différence dans le fichier modules
+     block:
+       - name: Ajout des modules dans le fichier
+         ansible.builtin.lineinfile:
+          path: /etc/modules
+          line: "{{ item }}"
+          insertafter: EOF
+         loop: "{{ loaded_modules }}"
+     when: loaded_modules | length > 0
+- name: Kernel Hardening
+  become: true
+  block:
+   - name: Paramètrage du kernel
+     ansible.builtin.lineinfile:
+      path: /etc/sysctl.conf
+      regexp: "{{ item.regexp }}"
+      line: "{{ item.line }}"
+     loop:
+       - { regexp: '^kernel.dmesg_restrict=1$', line: 'kernel.dmesg_restrict=1' }
+       - { regexp: '^kernel.kptr_restrict=2$', line: 'kernel.kptr_restrict=2' }
+       - { regexp: '^kernel.pid_max=4194304$', line: 'kernel.pid_max=4194304' }
+       - { regexp: '^kernel.perf_cpu_time_max_percent=1$', line: 'kernel.perf_cpu_time_max_percent=1' }
+       - { regexp: '^kernel.perf_event_max_sample_rate=1$', line: 'kernel.perf_event_max_sample_rate=1' }
+       - { regexp: '^kernel.perf_event_paranoid=3$', line: 'kernel.perf_event_paranoid=3' }
+       - { regexp: '^kernel.randomize_va_space=2$', line: 'kernel.randomize_va_space=2' }
+       - { regexp: '^kernel.sysrq=0$', line: 'kernel.sysrq=0'}
+       - { regexp: '^kernel.unprivileged_bpf_disabled=1$', line: 'kernel.unprivileged_bpf_disabled=1' }
+       - { regexp: '^kernel.panic_on_oops=1$', line: 'kernel.panic_on_oops=1' }
+       - { regexp: '^kernel.modules_disabled=1$', line: 'kernel.modules_disabled=1' }
+       - { regexp: '^kernel.yama.ptrace_scope=3$', line: 'kernel.yama.ptrace_scope=3' }
+       - { regexp: '^kernel.deny_new_usb=0$', line: 'kernel.deny_new_usb=0' }
+       - { regexp: '^kernel.tiocsti_restrict=1$', line: 'kernel.tiocsti_restrict=1' }
+       - { regexp: '^kernel.device_sidechannel_restrict=1$', line: 'kernel.device_sidechannel_restrict=1' }
+- name: Memory Hardening
+  become: true
+  block:
+   - name: Paramètrage de la memoire
+     ansible.builtin.lineinfile:
+      path: /etc/sysctl.conf
+      regexp: "{{ item.regexp }}"
+      line: "{{ item.line }}"
+     loop:
+       - { regexp: '^l1tf=full,force$', line: 'l1tf=full,force' }
+       - { regexp: '^page_poison=on$', line: 'page_poison=on' }
+       - { regexp: '^pti=on$', line: 'pti=on' }
+       - { regexp: '^slab_nomerge=yes$', line: 'slab_nomerge=yes' }
+       - { regexp: '^slub_debug=FZP$', line: 'slub_debug=FZP' }
+       - { regexp: '^spec_store_bypass_disable=seccomp$', line: 'spec_store_bypass_disable=seccomp' }
+       - { regexp: '^spectre_v2=on$', line: 'spectre_v2=on'}
+       - { regexp: '^mds=full,nosmt$', line: 'mds=full,nosmt' }
+       - { regexp: '^mce=0$', line: 'mce=0' }
+       - { regexp: '^page_alloc.shuffle=1$', line: 'page_alloc.shuffle=1' }
+       - { regexp: '^rng_core.default_quality=500$', line: 'rng_core.default_quality=500' }
+# - name: Memory Management Hardening
+#   become: true
+#   block:
+#    - name: Paramètrage du management de la mémoire
+#      ansible.builtin.lineinfile:
+#       path: /compilation
+#       regexp: "{{ item.regexp }}"
+#       line: "{{ item.line }}"
+#      loop:
+#        - { regexp: '^CONFIG_STRICT_KERNEL_RWX=y$', line: 'CONFIG_STRICT_KERNEL_RWX=y' }
+#        - { regexp: '^CONFIG_ARCH_OPTIONAL_KERNEL_RWX=y$', line: 'CONFIG_ARCH_OPTIONAL_KERNEL_RWX=y' }
+#        - { regexp: '^CONFIG_ARCH_HAS_STRICT_KERNEL_RWX=y$', line: 'CONFIG_ARCH_HAS_STRICT_KERNEL_RWX=y' }
+#        - { regexp: '^CONFIG_DEBUG_WX=y$', line: 'CONFIG_DEBUG_WX=y' }
+#        - { regexp: '^CONFIG_DEBUG_FS=n$', line: 'CONFIG_DEBUG_FS=n' }
+#        - { regexp: '^CONFIG_STACKPROTECTOR=y$', line: 'CONFIG_STACKPROTECTOR=y' }
+#        - { regexp: '^CONFIG_STACKPROTECTOR_STRONG=y$', line: 'CONFIG_STACKPROTECTOR_STRONG=y'}
+#        - { regexp: '^CONFIG_STRICT_DEVMEM=y$', line: 'CONFIG_STRICT_DEVMEM=y' }
+#        - { regexp: '^CONFIG_IO_STRICT_DEVMEM=y$', line: 'CONFIG_IO_STRICT_DEVMEM=y' }
+#        - { regexp: '^CONFIG_SCHED_STACK_END_CHECK=y$', line: 'CONFIG_SCHED_STACK_END_CHECK=y' }
+#        - { regexp: '^CONFIG_HARDENED_USERCOPY=y$', line: 'CONFIG_HARDENED_USERCOPY=y' }
+#        - { regexp: '^CONFIG_VMAP_STACK=y$', line: 'CONFIG_VMAP_STACK=y' }
+#        - { regexp: '^CONFIG_REFCOUNT_FULL=y$', line: 'CONFIG_REFCOUNT_FULL=y' }
+#        - { regexp: '^CONFIG_FORTIFY_SOURCE=y$', line: 'CONFIG_FORTIFY_SOURCE=y' }
+#        - { regexp: '^CONFIG_SECURITY_DMESG_RESTRICT=y$', line: 'CONFIG_SECURITY_DMESG_RESTRICT=y' }
+#        - { regexp: '^CONFIG_RETPOLINE=y$', line: 'CONFIG_RETPOLINE=y' }
+#        - { regexp: '^CONFIG_LEGACY_VSYSCALL_NONE=y$', line: 'CONFIG_LEGACY_VSYSCALL_NONE=y' }
+#        - { regexp: '^CONFIG_LEGACY_VSYSCALL_EMULATE=n$', line: 'CONFIG_LEGACY_VSYSCALL_EMULATE=n' }
+#        - { regexp: '^CONFIG_LEGACY_VSYSCALL_XONLY=n$', line: 'CONFIG_LEGACY_VSYSCALL_XONLY=n' }
+#        - { regexp: '^CONFIG_X86_VSYSCALL_EMULATION=n$', line: 'CONFIG_X86_VSYSCALL_EMULATION=n' }
+# - name: Data Structures Hardening
+#   become: true
+#   block:
+#    - name: Paramètrage de la structure de donnée
+#      ansible.builtin.lineinfile:
+#       path: /compilation
+#       regexp: "{{ item.regexp }}"
+#       line: "{{ item.line }}"
+#      loop:
+#        - { regexp: '^CONFIG_DEBUG_CREDENTIALS=y$', line: 'CONFIG_DEBUG_CREDENTIALS=y' }
+#        - { regexp: '^CONFIG_DEBUG_NOTIFIERS=y$', line: 'CONFIG_DEBUG_NOTIFIERS=y' }
+#        - { regexp: '^CONFIG_DEBUG_LIST=y$', line: 'CONFIG_DEBUG_LIST=y' }       
+#        - { regexp: '^CONFIG_DEBUG_SG=y$', line: 'CONFIG_DEBUG_SG=y' }
+#        - { regexp: '^CONFIG_BUG_ON_DATA_CORRUPTION=y$', line: 'CONFIG_BUG_ON_DATA_CORRUPTION=y' }
+# - name: Memory allocation Hardening
+#   become: true
+#   block:
+#    - name: Paramètrage de l'allocation mémoire
+#      ansible.builtin.lineinfile:
+#       path: /compilation
+#       regexp: "{{ item.regexp }}"
+#       line: "{{ item.line }}"
+#      loop:
+#        - { regexp: '^CONFIG_SLAB_FREELIST_RANDOM=y$', line: 'CONFIG_SLAB_FREELIST_RANDOM=y' }
+#        - { regexp: '^CONFIG_SLUB=y$', line: 'CONFIG_SLUB=y' }
+#        - { regexp: '^CONFIG_SLAB_FREELIST_HARDENED=y$', line: 'CONFIG_SLAB_FREELIST_HARDENED=y' }       
+#        - { regexp: '^CONFIG_SLAB_MERGE_DEFAULT=n$', line: 'CONFIG_SLAB_MERGE_DEFAULT=n' }
+#        - { regexp: '^CONFIG_SLUB_DEBUG=y$', line: 'CONFIG_SLUB_DEBUG=y' }
+#        - { regexp: '^CONFIG_PAGE_POISONING=y$', line: 'CONFIG_PAGE_POISONING=y' }
+#        - { regexp: '^CONFIG_PAGE_POISONING_NO_SANITY=y$', line: 'CONFIG_PAGE_POISONING_NO_SANITY=y' }
+#        - { regexp: '^CONFIG_PAGE_POISONING_ZERO=y$', line: 'CONFIG_PAGE_POISONING_ZERO=y' }
+# - name: Module kernel management
+#   become: true
+#   block:
+#    - name: Paramètrage du management des modules du kernel
+#      ansible.builtin.lineinfile:
+#       path: /compilation
+#       regexp: "{{ item.regexp }}"
+#       line: "{{ item.line }}"
+#      loop:
+#        - { regexp: '^CONFIG_MODULES=y$', line: 'CONFIG_MODULES=y' }
+#        - { regexp: '^CONFIG_STRICT_MODULE_RWX=y$', line: 'CONFIG_STRICT_MODULE_RWX=y' }
+#        - { regexp: '^CONFIG_MODULE_SIG=y$', line: 'CONFIG_MODULE_SIG=y' }       
+#        - { regexp: '^CONFIG_MODULE_SIG_FORCE=y$', line: 'CONFIG_MODULE_SIG_FORCE=y' }
+#        - { regexp: '^CONFIG_MODULE_SIG_ALL=y$', line: 'CONFIG_MODULE_SIG_ALL=y' }
+#        - { regexp: '^CONFIG_MODULE_SIG_SHA512=y$', line: 'CONFIG_MODULE_SIG_SHA512=y' }
+#        - { regexp: '^CONFIG_MODULE_SIG_HASH ="sha512"$', line: 'CONFIG_MODULE_SIG_HASH ="sha512"' }
+#        - { regexp: '^CONFIG_MODULE_SIG_KEY ="certs/signing_key.pem"$', line: 'CONFIG_MODULE_SIG_KEY ="certs/signing_key.pem"' }
+# - name: Handle abnormal situations
+#   become: true
+#   block:
+#    - name: Paramètrage du comportement du kernel lors d'un evenement anormal lors de la compilation
+#      ansible.builtin.lineinfile:
+#       path: /compilation
+#       regexp: "{{ item.regexp }}"
+#       line: "{{ item.line }}"
+#      loop:
+#        - { regexp: '^CONFIG_BUG=y$', line: 'CONFIG_BUG=y' }
+#        - { regexp: '^CONFIG_PANIC_ON_OOPS=y$', line: 'CONFIG_PANIC_ON_OOPS=y' }
+#        - { regexp: '^CONFIG_PANIC_TIMEOUT=-1$', line: 'CONFIG_PANIC_TIMEOUT=-1' }       
+# - name: Kernel security functions
+#   become: true
+#   block:
+#    - name: Paramètrage des modules de sécurité du Kernel
+#      ansible.builtin.lineinfile:
+#       path: /compilation
+#       regexp: "{{ item.regexp }}"
+#       line: "{{ item.line }}"
+#      loop:
+#        - { regexp: '^CONFIG_SECCOMP=y$', line: 'CONFIG_SECCOMP=y' }
+#        - { regexp: '^CONFIG_SECCOMP_FILTER=y$', line: 'CONFIG_SECCOMP_FILTER=y' }
+#        - { regexp: '^CONFIG_SECURITY=y$', line: 'CONFIG_SECURITY=y' }       
+#        - { regexp: '^CONFIG_SECURITY_YAMA=y$', line: 'CONFIG_SECURITY_YAMA=y' }
+- name: File system Hardening
+  become: true
+  block:
+   - name: Paramètrage du FS
+     ansible.builtin.lineinfile:
+      path: /etc/sysctl.conf
+      regexp: "{{ item.regexp }}"
+      line: "{{ item.line }}"
+     loop:
+       - { regexp: '^fs.suid_dumpable=0$', line: 'fs.suid_dumpable=0' }
+       - { regexp: '^fs.protected_fifos=2$', line: 'fs.protected_fifos=2' }
+       - { regexp: '^fs.protected_regular=2$', line: 'fs.protected_regular=2' }       
+       - { regexp: '^fs.protected_symlinks=1$', line: 'fs.protected_symlinks=1' }
+       - { regexp: '^fs.protected_hardlinks=1$', line: 'fs.protected_hardlinks=1' }
+- name: Network Hardening 
+  become: true
+  block:
+   - name: Paramètrage du FS
+     ansible.builtin.lineinfile:
+      path: /etc/sysctl.conf
+      regexp: "{{ item.regexp }}"
+      line: "{{ item.line }}"
+     loop:
+       - { regexp: '^net.core.bpf_jit_harden=2$', line: 'net.core.bpf_jit_harden=2' }
+       - { regexp: '^net.ipv4.ip_forward=0$', line: 'net.ipv4.ip_forward=0' }
+       - { regexp: '^net.ipv4.conf.all.accept_local=0$', line: 'fs.protected_regular=2' }       
+       - { regexp: '^net.ipv4.conf.all.accept_redirects=0$', line: 'net.ipv4.conf.all.accept_redirects=0' }
+       - { regexp: '^net.ipv4.conf.default.accept_redirects=0$', line: 'net.ipv4.conf.default.accept_redirects=0' }
+       - { regexp: '^net.ipv4.conf.all.secure_redirects=0$', line: 'net.ipv4.conf.all.secure_redirects=0' }
+       - { regexp: '^net.ipv4.conf.default.secure_redirects=0$', line: 'net.ipv4.conf.default.secure_redirects=0' }
+       - { regexp: '^net.ipv4.conf.all.shared_media=0$', line: 'net.ipv4.conf.all.shared_media=0' }
+       - { regexp: '^net.ipv4.conf.default.shared_media=0$', line: 'net.ipv4.conf.default.shared_media=0' }
+       - { regexp: '^net.ipv4.conf.all.accept_source_route=0$', line: 'net.ipv4.conf.all.accept_source_route=0' }
+       - { regexp: '^net.ipv4.conf.default.accept_source_route=0$', line: 'net.ipv4.conf.default.accept_source_route=0' }
+       - { regexp: '^net.ipv4.conf.all.arp_filter=1$', line: 'net.ipv4.conf.all.arp_filter=1' }
+       - { regexp: '^net.ipv4.conf.all.arp_ignore=2$', line: 'net.ipv4.conf.all.arp_ignore=2' }
+       - { regexp: '^net.ipv4.conf.all.route_localnet=0$', line: 'net.ipv4.conf.all.route_localnet=0' }
+       - { regexp: '^net.ipv4.conf.all.drop_gratuitous_arp=1$', line: 'net.ipv4.conf.all.drop_gratuitous_arp=1' }
+       - { regexp: '^net.ipv4.conf.default.rp_filter=1$', line: 'net.ipv4.conf.default.rp_filter=1' }
+       - { regexp: '^net.ipv4.conf.all.rp_filter=1$', line: 'net.ipv4.conf.all.rp_filter=1' }
+       - { regexp: '^net.ipv4.conf.default.send_redirects=0$', line: 'net.ipv4.conf.default.send_redirects=0' }
+       - { regexp: '^net.ipv4.conf.all.send_redirects=0$', line: 'net.ipv4.conf.all.send_redirects=0' }
+       - { regexp: '^net.ipv4.icmp_ignore_bogus_error_responses=1$', line: 'net.ipv4.icmp_ignore_bogus_error_responses=1' }
+       - { regexp: '^net.ipv4.ip_local_port_range =32768 65535$', line: 'net.ipv4.conf.default.accept_redirects=0' }
+       - { regexp: '^net.ipv4.tcp_rfc1337=1$', line: 'net.ipv4.tcp_rfc1337=1' }
+       - { regexp: '^net.ipv4.tcp_syncookies=1$', line: 'net.ipv4.tcp_syncookies=1' }
+       - { regexp: '^net.ipv6.conf.default.disable_ipv6=1$', line: 'net.ipv6.conf.default.disable_ipv6=1' }
+       - { regexp: '^net.ipv6.conf.all.disable_ipv6=1$', line: 'net.ipv6.conf.all.disable_ipv6=1' }
+
+  rescue:
+   - name: Afficher en cas d'erreur
+     ansible.builtin.debug:
+      msg: 'Bip bop - Il y a une erreur'

@@ -1,0 +1,10 @@
+---
+- name: Update GRUB configuration
+  become: true
+  command: update-grub
+ 
+- name: Reboot to apply changes
+  command: reboot
+  async: 1
+  poll: 0
+  ignore_errors: true

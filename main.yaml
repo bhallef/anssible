@@ -1,0 +1,7 @@
+---
+- name: "Hardening Linux"
+  hosts: linux
+  roles:
+   - kernel_linux
+   - grub
+   - audit_linux

@@ -1,0 +1,9 @@
+---
+- name: Modules Hardening
+  become: true
+  block:
+   - name: Paramètrage du GRUB (bootloader)
+     ansible.builtin.lineinfile:
+      path: /etc/default/grub
+      line: 'GRUB_CMDLINE_LINUX="iommu=force"'
+     notify: Update GRUB configuration

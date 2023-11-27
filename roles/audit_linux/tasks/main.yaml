@@ -1,0 +1,38 @@
+---
+- name: Audit des comptes
+  become: true
+  block:
+   - name: Installation de AuditD
+     ansible.builtin.apt:
+      state: present
+      name: auditd
+- name: Configuration de l'audit
+  become: true
+  block:
+   - name: Ajout de l'audit lors de lancement de nouveau process.
+     ansible.builtin.lineinfile:
+      path: /etc/audit/rules.d/root.rules
+      regexp: "{{ item.regexp }}"
+      line: "{{ item.line }}"
+      create: true
+      owner: root
+      group: root
+      mode: '0600'
+     loop:
+       - { regexp: '^-a exit ,always -F arch=b64 -S execve ,execveat$', line: '-a exit ,always -F arch=b64 -S execve ,execveat' }
+       - { regexp: '^-a exit ,always -F arch=b32 -S execve ,execveat$', line: '-a exit ,always -F arch=b32 -S execve ,execveat' }
+       - { regexp: '^-w /sbin/insmod -p x$', line: '-w /sbin/insmod -p x' }
+       - { regexp: '^-w /sbin/modprobe -p x$', line: '-w /sbin/modprobe -p x' }
+       - { regexp: '^-w /sbin/rmmod -p x$', line: '-w /sbin/rmmod -p x' }
+       - { regexp: '^-w /bin/kmod -p x$', line: '-w /bin/kmod -p x' }
+       - { regexp: '^-w /etc/ -p wa$', line: '-w /etc/ -p wa' }
+       - { regexp: '^-a exit ,always -S mount -S umount2$', line: '-a exit ,always -S mount -S umount2' }
+       - { regexp: '^-a exit ,always -S ioperm -S modify_ldt$', line: '-a exit ,always -S ioperm -S modify_ldt' }
+       - { regexp: '^-a exit ,always -S get_kernel_syms -S ptrace$', line: '-a exit ,always -S get_kernel_syms -S ptrace' }
+       - { regexp: '^-a exit ,always -S prctl$', line: '-a exit ,always -S prctl' }
+       - { regexp: '^-a exit ,always -F arch=b64 -S unlink -S rmdir -S rename$', line: '-a exit ,always -F arch=b64 -S unlink -S rmdir -S rename' }
+       - { regexp: '^-a exit ,always -F arch=b64 -S creat -S open -S openat -F exit=-EACCES$', line: '-a exit ,always -F arch=b64 -S creat -S open -S openat -F exit=-EACCES' }
+       - { regexp: '^-a exit ,always -F arch=b64 -S truncate -S ftruncate -F exit=-EACCES$', line: '-a exit ,always -F arch=b64 -S truncate -S ftruncate -F exit=-EACCES' }
+       - { regexp: '^-a exit ,always -F arch=b64 -S init_module -S delete_module$', line: '-a exit ,always -F arch=b64 -S init_module -S delete_module' }
+       - { regexp: '^-a exit ,always -F arch=b64 -S finit_module$', line: '-a exit ,always -F arch=b64 -S finit_module' }
+       - { regexp: '^-e 2$', line: '-e 2' }
